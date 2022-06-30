@@ -1,0 +1,95 @@
+#
+# vdsp_sipc.ko
+# vdsp_spipe.ko
+# sprd_vdsp.ko
+#
+# Kbuild: for kernel building external module
+#
+# Note:
+# - Please refer to modules/sample/Kbuild to find out what should be
+#   done is this Kbuild file
+#
+
+ifeq ($(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE),Cadence)
+PROJ_DIR := sharkl5pro
+VERSION_DIR := v1
+else ifeq ($(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE),Cadence_vq7)
+PROJ_DIR := qogirn6pro
+VERSION_DIR := v2
+endif
+#
+# Source List
+#
+KO_MODULE_NAME := sprd_vdsp
+KO_MODULE_PATH := $(src)
+KO_MODULE_SRC  :=
+
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/products/$(PROJ_DIR)/*.c)
+
+ifeq ($(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE),Cadence) # sharkl5pro
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/communication/ipi/vdsp_ipi_drv.c)
+else ifeq ($(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE),Cadence_vq7) # qogirn6pro
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/communication/mailbox/*.c)
+endif
+
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/*.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/dvfs/$(VERSION_DIR)/vdsp_dvfs.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/trusty/$(VERSION_DIR)/xrp_faceid.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/mainflow/$(VERSION_DIR)/xvp_main.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/smem/$(VERSION_DIR)/vdsp_smem.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/trusty/$(VERSION_DIR)/vdsp_trusty.c)
+
+ifneq ($(BSP_BOARD_NAME),ums9620_10h10)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(VDSP_DIR)/$(PROJ_DIR)/vdsp_trusty.c)
+KO_MODULE_SRC += $(wildcard $(KO_MODULE_PATH)/$(VDSP_DIR)/$(PROJ_DIR)/xrp_faceid.c)
+endif
+
+#
+# Final Objects
+#
+obj-m := $(KO_MODULE_NAME).o
+# Comment it if the only object file has the same name with module
+$(KO_MODULE_NAME)-y := $(patsubst $(src)/%.c,%.o,$(KO_MODULE_SRC))
+
+#
+# Build Options
+#
+ccflags-y += -DDEBUG
+ccflags-y += -DKERNEL_VERSION_414
+ccflags-y += -I$(KO_MODULE_PATH)/../interface
+ccflags-y += -I$(srctree)/drivers/staging/android/ion
+ifeq ($(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE),Cadence)
+ccflags-y += -I$(srctree)/drivers/devfreq/apsys/
+ccflags-y += -I$(srctree)/drivers/devfreq/apsys/vdsp
+ccflags-y += -I$(KO_MODULE_PATH)/communication/ipi/
+endif
+
+ccflags-y += -I$(KO_MODULE_PATH)/products/$(PROJ_DIR)/
+ccflags-y += -I$(KO_MODULE_PATH)/
+ccflags-y += -I$(KO_MODULE_PATH)/dvfs/$(VERSION_DIR)/
+ccflags-y += -I$(KO_MODULE_PATH)/inc/$(VERSION_DIR)/
+ccflags-y += -I$(KO_MODULE_PATH)/smem/$(VERSION_DIR)/
+ccflags-y += -I$(KO_MODULE_PATH)/trusty/$(VERSION_DIR)/
+
+
+ifeq ($(BSP_BOARD_CAMERA_MODULE_VDSP_DEVICE),Cadence_vq7)
+ccflags-y += -I$(KO_MODULE_PATH)/../../../common/camera/mmdvfs/r2p0/dvfs_driver/dvfs_reg_param/qogirn6pro/
+ccflags-y += -I$(KO_MODULE_PATH)/../../../common/camera/mmdvfs/r2p0/mmsys_comm/
+ccflags-y += -I$(KO_MODULE_PATH)/../../../common/camera/common
+ccflags-y += -I$(srctree)/drivers/devfreq/
+ccflags-y += -I$(KO_MODULE_PATH)/communication/mailbox/
+endif
+
+# FaceID build options
+$(warning BSP_BOARD_NAME=$(BSP_BOARD_NAME))
+ifneq ($(BSP_BOARD_NAME),ums9620_10h10)
+ccflags-y += -DFACEID_VDSP_FULL_TEE
+endif
+
+ifeq ($(CONFIG_COMPAT),y)
+ccflags-y += -DCONFIG_COMPAT
+endif
+
+ifeq ($(TEST_ON_HAPS),true)
+ccflags-y += -DTEST_ON_HAPS
+endif
